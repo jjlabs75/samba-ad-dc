@@ -1,0 +1,42 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# ── Required variables ──────────────────────────────────────────────
+: "${DOMAIN_REALM:?DOMAIN_REALM is required (ex: JJLABS.LAN)}"
+: "${DOMAIN_NAME:?DOMAIN_NAME is required (ex: JJLABS)}"
+: "${DNS_FORWARDER:?DNS_FORWARDER is required (ex: 1.1.1.1)}"
+: "${DOCKER_HOST_IP:?DOCKER_HOST_IP is required (ex: 192.168.0.1)}"
+
+
+# ── Cleaning the configuration ──────────────────────────────────────
+[ -f /etc/samba/smb.conf ] && rm -f /etc/samba/smb.conf
+[ -d /var/lib/samba/private ] && rm -rf /var/lib/samba/private/*
+
+
+# ── Join Domain ────────────────────────────────────────────
+echo "=== Samba AD Domain join ==="
+echo "Realm    : $DOMAIN_REALM"
+echo "Domain   : $DOMAIN_NAME"
+echo "Forwarder: $DNS_FORWARDER"
+echo "Host IP  : $DOCKER_HOST_IP"
+echo ""
+
+samba-tool domain join "$DOMAIN_REALM" DC \
+    --dns-backend=SAMBA_INTERNAL \
+    --option='idmap_ldb:use rfc2307=yes' \
+    --option="dns forwarder=$DNS_FORWARDER" \
+    --option="interfaces=lo $DOCKER_HOST_IP" \
+    --option="bind interfaces only=yes" \
+    "$@"
+
+
+# ── Check ───────────────────────────────────────────────────────────
+echo ""
+if [ -f "/etc/samba/smb.conf" ] && [ -f "/var/lib/samba/private/sam.ldb" ]; then
+    echo "✅ Domain join successful!"
+    echo "Samba services will start shortly."
+else
+    echo "❌ Domain join failed!"
+fi
+
