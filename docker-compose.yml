@@ -1,0 +1,41 @@
+services:
+  dc:
+    image: samba-ad-dc:4.22
+    container_name: ${COMPOSE_PROJECT_NAME:-samba-ad-dc}
+
+    # HOST network mode (recommended)
+    # The container shares the host's network stack directly.
+    # Benefits:
+    #   - Samba listens on the server's real IP (required for AD/DNS)
+    #   - No NAT — Windows/Linux clients see the DC's actual IP
+    #   - Kerberos/LDAP SRV records resolve correctly
+    #   - No need to map dozens of ports individually
+    # Constraint: requires a server/VM dedicated to this role
+    privileged: true
+    network_mode: host
+
+    environment:
+      - DOMAIN_REALM=${DOMAIN_REALM}
+      - DOMAIN_NAME=${DOMAIN_NAME}
+      - DNS_FORWARDER=${DNS_FORWARDER}
+      - TZ=${TIMEZONE:-Europe/Paris}
+      - DOCKER_HOST_IP=${DOCKER_HOST_IP:-}
+      - DOMAIN_NETWORK=${DOMAIN_NETWORK:-}
+
+    volumes:
+      - ${SAMBA_CONFIG_DIR}:/etc/samba
+      - ${SAMBA_DATA_DIR}:/var/lib/samba
+      - ${SAMBA_LOGS_DIR}:/var/log/samba
+      - ${SAMBA_BACKUP_DIR}:/backups
+
+    restart: unless-stopped
+
+    # Memory limit (optional — adjust to fit your server)
+    mem_limit: 2g
+
+    healthcheck:
+      test: ["CMD-SHELL", "samba-tool processes 2>/dev/null | grep -q samba || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
