@@ -321,7 +321,7 @@ sudo docker compose exec dc \
 Rebuild:
 
 ```bash
-sudo docker compose build --no-cache
+sudo docker build -t samba-ad-dc:4.22 ./build
 sudo docker compose up -d
 ```
 
